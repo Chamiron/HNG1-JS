@@ -1,7 +1,6 @@
 {
-  "name": "hng1-js",
+  "name": "hng1",
   "version": "1.0.0",
-  "description": "",
   "homepage": "https://github.com/Chamiron/HNG1-JS#readme",
   "bugs": {
     "url": "https://github.com/Chamiron/HNG1-JS/issues"
@@ -21,5 +20,8 @@
     "axios": "^1.7.9",
     "cors": "^2.8.5",
     "express": "^4.21.2"
-  }
+  },
+  "devDependencies": {},
+  "keywords": [],
+  "description": ""
 }

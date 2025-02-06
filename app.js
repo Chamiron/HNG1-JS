@@ -3,83 +3,73 @@ const cors = require('cors');
 const axios = require('axios');
 
 const app = express();
-
-app.use(express.json());
 app.use(cors());
 
-function isArmstrong(num) {
-    const digits = num.toString().split('').map(Number);
-    const power = digits.length;
-    const sum = digits.reduce((acc, digit) => acc + Math.pow(digit, power), 0);
-    return sum === num;
-}
+const cache = new Map();
 
-function sumOfDigits(num) {
-    return num.toString().split('').map(Number).reduce((acc, digit) => acc + digit, 0);
-}
-
-function isPrime(num) {
-    if (num < 2) return false;
-    for (let i = 2; i * i <= num; i++) {
-        if (num % i === 0) return false;
+const isPrime = (n) => {
+    if (n < 2) return false;
+    for (let i = 2; i <= Math.sqrt(n); i++) {
+        if (n % i === 0) return false;
     }
     return true;
-}
+};
 
-function isPerfect(num) {
+const isArmstrong = (n) => {
+    const digits = Math.abs(n).toString().split('').map(Number);
+    return digits.reduce((acc, digit) => acc + Math.pow(digit, digits.length), 0) === Math.abs(n);
+};
+
+const isPerfect = (n) => {
+    if (n < 2) return false;
     let sum = 1;
-    for (let i = 2; i * i <= num; i++) {
-        if (num % i === 0) {
-            sum += i;
-            if (i !== num / i) sum += num / i;
+    for (let i = 2; i <= Math.sqrt(n); i++) {
+        if (n % i === 0) {
+            sum += i + (i !== n / i ? n / i : 0);
         }
     }
-    return sum === num && num !== 1;
-}
+    return sum === n;
+};
 
 app.get('/api/classify-number', async (req, res) => {
     const number = req.query.number;
 
-    if (!number || isNaN(number)) {
-        return res.status(400).json({ number: number, error: true });
+    if (isNaN(number)) {
+        return res.status(400).json({ number, error: true });
     }
 
-    const numericValue = parseInt(number, 10);
-    const properties = [];
+    const num = parseInt(number);
+    const digitSum = Math.abs(num).toString().split('').reduce((acc, digit) => acc + Number(digit), 0);
 
-    if (isArmstrong(numericValue)) {
-        properties.push('armstrong');
-    }
-    if (numericValue % 2 === 0) {
-        properties.push('even');
-    } else {
-        properties.push('odd');
-    }
+    let properties = [];
+    if (isArmstrong(num)) properties.push('armstrong');
+    if (isPerfect(num)) properties.push('perfect');
+    if (isPrime(num)) properties.push('prime');
+    properties.push(num % 2 === 0 ? 'even' : 'odd');
 
     try {
-        let funFact = `No fun fact available for ${numericValue}`;
-        if (numericValue === 371) {
-            funFact = "371 is an Armstrong number because 3^3 + 7^3 + 1^3 = 371";
-        } else {
-            const factResponse = await axios.get(`http://numbersapi.com/${numericValue}/math`);
-            funFact = factResponse.data;
+        if (cache.has(num)) {
+            return res.json(cache.get(num));
         }
 
-        res.json({
-            number: numericValue,
-            is_prime: isPrime(numericValue),
-            is_perfect: isPerfect(numericValue),
+        const funFactResponse = await axios.get(`http://numbersapi.com/${num}/math?json`, { timeout: 3000 });
+
+        const responseData = {
+            number: num,
+            is_prime: isPrime(num),
+            is_perfect: isPerfect(num),
             properties,
-            digit_sum: sumOfDigits(numericValue),
-            fun_fact: funFact,
-        });
+            digit_sum: digitSum,
+            fun_fact: funFactResponse.data.text
+        };
+
+        cache.set(num, responseData);
+
+        res.json(responseData);
     } catch (error) {
-        console.error('Error fetching fun fact:', error.message);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: 'Error fetching fun fact' });
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
