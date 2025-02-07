@@ -34,12 +34,13 @@ const isPerfect = (n) => {
 app.get('/api/classify-number', async (req, res) => {
     const number = req.query.number;
 
-    if (isNaN(number)) {
-        return res.status(400).json({ number, error: true });
+    // Validate the number properly
+    if (number === undefined || number.trim() === '' || isNaN(number)) {
+        return res.status(400).json({ error: 'Invalid number provided' });
     }
 
-    const num = parseInt(number);
-    const digitSum = Math.abs(num).toString().split('').reduce((acc, digit) => acc + Number(digit), 0);
+    const num = Number(number); // Handles both integers and floats correctly
+    const digitSum = Math.abs(num).toString().replace('.', '').split('').reduce((acc, digit) => acc + Number(digit), 0);
 
     let properties = [];
     if (isArmstrong(num)) properties.push('armstrong');
@@ -49,7 +50,7 @@ app.get('/api/classify-number', async (req, res) => {
 
     try {
         if (cache.has(num)) {
-            return res.json(cache.get(num));
+            return res.status(200).json(cache.get(num));
         }
 
         const funFactResponse = await axios.get(`http://numbersapi.com/${num}/math?json`, { timeout: 3000 });
@@ -65,7 +66,7 @@ app.get('/api/classify-number', async (req, res) => {
 
         cache.set(num, responseData);
 
-        res.json(responseData);
+        return res.status(200).json(responseData); // Always return 200 for valid numbers
     } catch (error) {
         res.status(500).json({ error: 'Error fetching fun fact' });
     }
